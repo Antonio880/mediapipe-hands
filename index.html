@@ -72,6 +72,11 @@
           <span class="control__label">Release <span id="release-val">0.9</span>s</span>
           <input type="range" id="release" class="control__slider" min="10" max="250" value="90" />
         </label>
+
+        <label class="control" for="transpose">
+          <span class="control__label">Transpor <span id="transpose-val">+0 · Dó</span></span>
+          <input type="range" id="transpose" class="control__slider" min="-12" max="12" value="0" step="1" />
+        </label>
       </div>
     </div>
 
@@ -86,12 +91,6 @@
       <!-- Tela inicial sobre a câmera -->
       <div class="cover" id="cover">
         <div class="cover__inner">
-          <p class="cover__eyebrow">Escala de Dó maior · grau por dedos</p>
-          <h2 class="cover__title">Levante os dedos.<br />O ar vira acorde.</h2>
-          <p class="cover__hint">
-            O navegador só libera microfone/áudio e câmera depois de um clique.
-            Autorize a webcam quando for solicitado.
-          </p>
           <button id="start-btn" class="start" type="button">Iniciar câmera e áudio</button>
           <p class="cover__status" id="status">Aguardando início</p>
         </div>
