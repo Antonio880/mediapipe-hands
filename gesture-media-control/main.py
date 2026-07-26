@@ -199,7 +199,7 @@ try:
         time.sleep(max(0.0, frame_interval - elapsed))
 
 except KeyboardInterrupt:
-    print("\n[INFO] Encerrando... Até logo! 👋")
+    print("\n[INFO] Encerrando...")
 
 finally:
     cap.release()
