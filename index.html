@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aria — Instrumento Gestual</title>
+
+  <!-- Fontes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="stage">
+    <!-- Cabeçalho -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true"></span>
+        <div class="brand__text">
+          <h1>Aria</h1>
+          <p>Instrumento tocado pelas mãos</p>
+        </div>
+      </div>
+
+      <div class="mode" role="group" aria-label="Modo de som">
+        <button class="mode__btn is-active" data-mode="chords" type="button">Acordes</button>
+        <button class="mode__btn" data-mode="notes" type="button">Notas</button>
+      </div>
+    </header>
+
+    <!-- Palco: câmera + HUD -->
+    <main class="viewport">
+      <!-- Vídeo cru (oculto): usado apenas como fonte para o MediaPipe -->
+      <video id="input-video" playsinline></video>
+
+      <!-- Canvas de saída: imagem espelhada + landmarks -->
+      <canvas id="output-canvas"></canvas>
+
+      <!-- Tela inicial sobre a câmera -->
+      <div class="cover" id="cover">
+        <div class="cover__inner">
+          <p class="cover__eyebrow">Escala de Dó maior · grau por dedos</p>
+          <h2 class="cover__title">Levante os dedos.<br />O ar vira acorde.</h2>
+          <p class="cover__hint">
+            O navegador só libera microfone/áudio e câmera depois de um clique.
+            Autorize a webcam quando for solicitado.
+          </p>
+          <button id="start-btn" class="start" type="button">Iniciar câmera e áudio</button>
+          <p class="cover__status" id="status">Aguardando início</p>
+        </div>
+      </div>
+
+      <!-- HUD sobreposto -->
+      <div class="hud" id="hud" aria-live="polite">
+        <div class="hud__degree">
+          <span class="hud__numeral" id="numeral">–</span>
+          <span class="hud__label" id="chord-name">Silêncio</span>
+          <span class="hud__notes" id="chord-notes">mostre as mãos</span>
+        </div>
+
+        <div class="hud__hands">
+          <div class="hand-chip">
+            <span class="hand-chip__key">Esq.</span>
+            <span class="hand-chip__val" id="left-count">0</span>
+          </div>
+          <div class="hand-chip hand-chip--total">
+            <span class="hand-chip__key">Total</span>
+            <span class="hand-chip__val" id="total-count">0</span>
+          </div>
+          <div class="hand-chip">
+            <span class="hand-chip__key">Dir.</span>
+            <span class="hand-chip__val" id="right-count">0</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Legenda dos graus -->
+    <footer class="legend" id="legend"></footer>
+  </div>
+
+  <!-- Bibliotecas via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+  <script src="script.js"></script>
+</body>
+</html>

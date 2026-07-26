@@ -1,0 +1,344 @@
+/* =========================================================
+   Aria — instrumento gestual
+   Direção visual: painel de synth / HUD de palco.
+   Fundo midnight, numeral do grau em serifa expressiva
+   (a linguagem clássica dos graus), dados em monoespaçada.
+   ========================================================= */
+
+:root {
+  --bg:        #0b0e1a;
+  --bg-soft:   #131829;
+  --surface:   rgba(18, 23, 40, 0.62);
+  --stroke:    rgba(255, 255, 255, 0.10);
+  --text:      #eef1f8;
+  --muted:     #868da6;
+
+  --gold:      #f5c542;   /* grau ativo — timbre "quente" */
+  --violet:    #7c5cff;   /* acento secundário */
+  --cyan:      #38f0e0;   /* conexões da mão */
+  --pink:      #ff4d8d;   /* juntas da mão */
+
+  --radius:    18px;
+  --ease:      cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  background:
+    radial-gradient(1100px 700px at 78% -8%, rgba(124, 92, 255, 0.16), transparent 60%),
+    radial-gradient(900px 600px at 8% 110%, rgba(56, 240, 224, 0.10), transparent 55%),
+    var(--bg);
+  color: var(--text);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  justify-content: center;
+  padding: clamp(14px, 3vw, 34px);
+}
+
+.stage {
+  width: 100%;
+  max-width: 960px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ---------- Cabeçalho ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.brand { display: flex; align-items: center; gap: 14px; }
+
+.brand__mark {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--gold), var(--pink) 55%, var(--violet));
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.14), 0 8px 26px rgba(124,92,255,0.35);
+  position: relative;
+}
+.brand__mark::after {
+  content: ""; position: absolute; inset: 11px;
+  border-radius: 50%;
+  border: 2px solid rgba(11,14,26,0.9);
+}
+
+.brand__text h1 {
+  font-family: "Fraunces", serif;
+  font-weight: 900;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+.brand__text p {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 3px;
+  letter-spacing: 0.01em;
+}
+
+.mode {
+  display: inline-flex;
+  padding: 4px;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+}
+.mode__btn {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.mode__btn:hover { color: var(--text); }
+.mode__btn.is-active {
+  color: #12151f;
+  background: var(--text);
+}
+
+/* ---------- Palco / câmera ---------- */
+.viewport {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #05070f;
+  border: 1px solid var(--stroke);
+  box-shadow: 0 30px 80px -30px rgba(0,0,0,0.8);
+}
+
+#input-video { display: none; }
+
+#output-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ---------- Tela de entrada (cover) ---------- */
+.cover {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 24px;
+  background:
+    radial-gradient(700px 500px at 50% 40%, rgba(124,92,255,0.14), transparent 70%),
+    rgba(6, 9, 18, 0.86);
+  backdrop-filter: blur(6px);
+  transition: opacity 0.5s var(--ease), visibility 0.5s var(--ease);
+}
+.cover.is-hidden { opacity: 0; visibility: hidden; }
+
+.cover__inner { max-width: 460px; }
+
+.cover__eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--gold);
+  margin-bottom: 16px;
+}
+.cover__title {
+  font-family: "Fraunces", serif;
+  font-weight: 600;
+  font-size: clamp(26px, 5vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: 14px;
+}
+.cover__hint {
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.55;
+  max-width: 380px;
+  margin: 0 auto 26px;
+}
+
+.start {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: #12151f;
+  background: var(--gold);
+  border: 0;
+  padding: 14px 26px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.18s var(--ease), box-shadow 0.25s var(--ease), background 0.2s var(--ease);
+  box-shadow: 0 12px 34px -10px rgba(245,197,66,0.6);
+}
+.start:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -12px rgba(245,197,66,0.7); }
+.start:active { transform: translateY(0); }
+.start:disabled { opacity: 0.55; cursor: default; transform: none; box-shadow: none; }
+
+.cover__status {
+  margin-top: 18px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  min-height: 16px;
+}
+
+/* ---------- HUD sobreposto ---------- */
+.hud {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 2;
+  padding: 18px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  background: linear-gradient(to top, rgba(5,7,15,0.82), rgba(5,7,15,0.0));
+  pointer-events: none;
+}
+
+.hud__degree {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 16px;
+  align-items: center;
+}
+
+.hud__numeral {
+  grid-row: 1 / 3;
+  font-family: "Fraunces", serif;
+  font-weight: 900;
+  font-size: clamp(48px, 9vw, 84px);
+  line-height: 0.82;
+  color: var(--gold);
+  text-shadow: 0 0 34px rgba(245,197,66,0.45);
+  min-width: 1.1ch;
+  transition: color 0.25s var(--ease), text-shadow 0.25s var(--ease);
+}
+.hud__label {
+  font-family: "Fraunces", serif;
+  font-weight: 600;
+  font-size: clamp(17px, 2.6vw, 23px);
+  letter-spacing: -0.01em;
+  align-self: end;
+}
+.hud__notes {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12.5px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  align-self: start;
+}
+
+/* pulso quando um novo grau é disparado */
+.hud__numeral.pulse { animation: strike 0.42s var(--ease); }
+@keyframes strike {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.16); text-shadow: 0 0 46px rgba(245,197,66,0.85); }
+  100% { transform: scale(1); }
+}
+
+/* estado de silêncio */
+.hud__numeral.silent { color: var(--muted); text-shadow: none; }
+
+.hud__hands {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+.hand-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 52px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(12px);
+}
+.hand-chip__key {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.hand-chip__val {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.hand-chip--total { background: rgba(245,197,66,0.14); border-color: rgba(245,197,66,0.35); }
+.hand-chip--total .hand-chip__val { color: var(--gold); }
+
+/* ---------- Legenda dos graus ---------- */
+.legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+.legend__item {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--stroke);
+  transition: border-color 0.2s var(--ease), transform 0.2s var(--ease);
+}
+.legend__item.is-active {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -14px rgba(245,197,66,0.5);
+}
+.legend__num {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+.legend__deg {
+  font-family: "Fraunces", serif;
+  font-weight: 600;
+  font-size: 16px;
+  margin-top: 2px;
+}
+.legend__name { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+.legend__item.is-active .legend__deg { color: var(--gold); }
+
+/* ---------- Responsivo ---------- */
+@media (max-width: 560px) {
+  .hud { flex-direction: column; align-items: stretch; gap: 12px; }
+  .hud__hands { justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
