@@ -150,8 +150,9 @@ try:
         wy    = wrist.y   # Y normalizado [0.0, 1.0] (0 = topo, 1 = base)
 
         # ── 1. Controle de Volume por Zona ────────────────────────────────────
-        # Só dispara se não há swipe em andamento (histórico pequeno)
-        if now - last_volume_time > VOLUME_COOLDOWN:
+        # Só dispara com mão FECHADA (≤1 dedo estendido) para não conflitar com Play/Pause
+        hand_is_open = is_open_hand(lm)
+        if not hand_is_open and now - last_volume_time > VOLUME_COOLDOWN:
             if wy < VOLUME_ZONE:
                 send_key(Key.media_volume_up, "Volume UP  🔊")
                 last_volume_time = now
@@ -182,7 +183,7 @@ try:
                 wrist_x_history.clear()
 
         # ── 3. Mão Aberta por 1s → Play/Pause ────────────────────────────────
-        if is_open_hand(lm):
+        if hand_is_open:
             if open_hand_start is None:
                 open_hand_start = now  # Começa a contar
             elif (now - open_hand_start >= OPEN_HAND_HOLD
