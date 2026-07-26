@@ -52,14 +52,22 @@ function noteToPt(note) {
 
 /* ---------- Escala: nº de dedos de UMA mão → grau/acorde (Dó maior) ----------
    Cada mão é independente: 1 dedo na direita = grau I, 2 dedos na
-   esquerda = grau ii, e as duas tocam JUNTAS (nunca somamos as mãos). */
+   esquerda = grau ii, e as duas tocam JUNTAS (nunca somamos as mãos).
+   Uma mão só alcança graus 1-5 (I a V) contando dedos — para vi, vii°
+   e as oitavas acima, feche o PUNHO da outra mão: isso "destrava" +5
+   nos graus da mão que está contando (veja shiftForHand). */
 const SCALE = [
   null, // 0 dedos = mão em silêncio
-  { numeral: "I",   quality: "Maior", notes: ["C4", "E4", "G4"], root: "C4" },
-  { numeral: "ii",  quality: "menor", notes: ["D4", "F4", "A4"], root: "D4" },
-  { numeral: "iii", quality: "menor", notes: ["E4", "G4", "B4"], root: "E4" },
-  { numeral: "IV",  quality: "Maior", notes: ["F4", "A4", "C5"], root: "F4" },
-  { numeral: "V",   quality: "Maior", notes: ["G4", "B4", "D5"], root: "G4" },
+  { numeral: "I",    quality: "Maior", notes: ["C4", "E4", "G4"], root: "C4" },
+  { numeral: "ii",   quality: "menor", notes: ["D4", "F4", "A4"], root: "D4" },
+  { numeral: "iii",  quality: "menor", notes: ["E4", "G4", "B4"], root: "E4" },
+  { numeral: "IV",   quality: "Maior", notes: ["F4", "A4", "C5"], root: "F4" },
+  { numeral: "V",    quality: "Maior", notes: ["G4", "B4", "D5"], root: "G4" },
+  { numeral: "vi",   quality: "menor", notes: ["A4", "C5", "E5"], root: "A4" },
+  { numeral: "vii°", quality: "diminuto", notes: ["B4", "D5", "F5"], root: "B4" },
+  { numeral: "I⁸",   quality: "Maior (8ª)", notes: ["C5", "E5", "G5"], root: "C5" },
+  { numeral: "ii⁸",  quality: "menor (8ª)", notes: ["D5", "F5", "A5"], root: "D5" },
+  { numeral: "iii⁸", quality: "menor (8ª)", notes: ["E5", "G5", "B5"], root: "E5" },
 ];
 
 /* ---------- Escala de melodia (modo Melodia) ----------
@@ -337,6 +345,7 @@ function onResults(results) {
 
   let left = 0, right = 0;
   const seenLabels = new Set();
+  const rawCount = { Left: null, Right: null }; // null = mão não detectada neste frame
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
     for (let i = 0; i < results.multiHandLandmarks.length; i++) {
@@ -350,23 +359,33 @@ function onResults(results) {
       if (mode === "melody") {
         handleMelodyHand(label, lm);
       } else {
-        const c = countFingers(lm, label);
-        handleHandGesture(label, c);
-        // O canvas exibe a imagem espelhada (efeito selfie), mas o rótulo
-        // "Left"/"Right" do MediaPipe se refere à mão real, não-espelhada.
-        // Por isso invertemos aqui só a atribuição do HUD (esquerda/direita
-        // na tela), mantendo o rótulo original para a lógica do polegar.
-        if (label === "Left") right = c; else left = c;
+        rawCount[label] = countFingers(lm, label);
       }
     }
   }
 
-  // Mão que saiu do quadro solta o que estava tocando
-  ["Left", "Right"].forEach((l) => {
-    if (seenLabels.has(l)) return;
-    if (mode === "melody") releaseMelodyHand(l);
-    else handleHandGesture(l, 0);
-  });
+  if (mode !== "melody") {
+    // Punho fechado (0 dedos) numa mão vira um "shift": destrava +5 graus
+    // (vi, vii° e as oitavas) na mão que está contando dedos do lado oposto.
+    ["Left", "Right"].forEach((label) => {
+      const own = rawCount[label];
+      const displayCount = own === null ? 0 : own;
+      if (label === "Left") right = displayCount; else left = displayCount;
+
+      if (own === null) {                 // mão fora do quadro → silêncio
+        handleHandGesture(label, 0);
+        return;
+      }
+      const otherLabel = label === "Left" ? "Right" : "Left";
+      const otherIsFist = rawCount[otherLabel] === 0;   // punho fechado, detectado
+      const effective = own > 0 && otherIsFist ? own + 5 : own;
+      handleHandGesture(label, effective);
+    });
+  }
+
+  if (mode === "melody") {
+    ["Left", "Right"].forEach((l) => { if (!seenLabels.has(l)) releaseMelodyHand(l); });
+  }
 
   ctx.restore();                      // desfaz o espelhamento antes de desenhar texto de UI
   if (mode === "melody") drawMelodyGuides();
@@ -440,6 +459,7 @@ modeBtns.forEach((btn) => {
 
     mode = next;
     legendEl.classList.toggle("is-hidden", mode === "melody");
+    document.getElementById("legend-hint").classList.toggle("is-hidden", mode === "melody");
 
     if (mode === "melody") updateMelodyHud();
     else updateChordHud();
@@ -501,12 +521,13 @@ transposeVal.textContent = transposeLabel(0);
 
 /* ---------- Legenda dos graus ---------- */
 function buildLegend() {
-  for (let i = 1; i < SCALE.length; i++) {
+  for (let i = 1; i <= 7; i++) {
     const item = document.createElement("div");
     item.className = "legend__item";
     item.dataset.count = i;
+    const numText = i <= 5 ? `${i} ${i === 1 ? "dedo" : "dedos"}` : `${i - 5} + punho`;
     item.innerHTML = `
-      <span class="legend__num">${i} ${i === 1 ? "dedo" : "dedos"}</span>
+      <span class="legend__num">${numText}</span>
       <span class="legend__deg">${SCALE[i].numeral}</span>
       <span class="legend__name"></span>`;
     legendEl.appendChild(item);
