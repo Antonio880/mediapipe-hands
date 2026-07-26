@@ -25,6 +25,17 @@ const totalEl    = document.getElementById("total-count");
 const legendEl   = document.getElementById("legend");
 const modeBtns   = document.querySelectorAll(".mode__btn");
 
+const gearBtn      = document.getElementById("gear-btn");
+const controlPanel = document.getElementById("control-panel");
+const waveformSel   = document.getElementById("waveform");
+const playModeBtns  = document.querySelectorAll(".segmented__btn");
+const volumeSlider   = document.getElementById("volume");
+const volumeVal      = document.getElementById("volume-val");
+const reverbSlider   = document.getElementById("reverb");
+const reverbVal      = document.getElementById("reverb-val");
+const releaseSlider  = document.getElementById("release");
+const releaseVal     = document.getElementById("release-val");
+
 /* ---------- Escala: nº de dedos → grau / acorde (Dó maior) ----------
    Índice do array = total de dedos levantados (0 a 10).            */
 const SCALE = [
@@ -41,15 +52,35 @@ const SCALE = [
   { numeral: "V⁸",  name: "Sol Maior (8ª)",  notes: ["G5", "B5", "D6"], root: "G5" },
 ];
 
+/* ---------- Escala de melodia (modo Melodia) ----------
+   Posição X da mão → nota quantizada nesta escala (Dó maior, 2 oitavas).
+   Da esquerda para a direita da tela = grave para agudo.            */
+const MELODY_SCALE = [
+  "C4", "D4", "E4", "F4", "G4", "A4", "B4",
+  "C5", "D5", "E5", "F5", "G5", "A5", "B5", "C6",
+];
+const PT_PITCH = { C: "Dó", D: "Ré", E: "Mi", F: "Fá", G: "Sol", A: "Lá", B: "Si" };
+function noteToPt(note) {
+  return PT_PITCH[note[0]] + note.slice(1);
+}
+
 /* ---------- Estado ---------- */
 let audioReady   = false;
-let mode         = "chords";          // "chords" | "notes"
+let mode         = "chords";          // "chords" | "notes" | "melody"
+let playMode     = "trigger";         // "trigger" (dedilha) | "pad" (sustenta) — só modos chords/notes
 
 // Debounce por estabilidade de frames + memória do último gesto tocado
 const STABLE_FRAMES = 3;              // frames iguais necessários p/ disparar
 let candidateCount  = -1;
 let stableFrames    = 0;
 let lastPlayed      = -1;
+let heldNotes       = [];             // notas atualmente sustentadas (modo pad)
+
+// Estado de pinça por mão, exclusivo do modo Melodia (sem debounce: resposta imediata)
+const pinchState = {
+  Left:  { pinched: false, note: null },
+  Right: { pinched: false, note: null },
+};
 
 /* ---------- Áudio (Tone.js) ---------- */
 let synth, reverb;
@@ -61,12 +92,28 @@ function setupAudio() {
     envelope: { attack: 0.02, decay: 0.18, sustain: 0.35, release: 0.9 },
   }).connect(reverb);
   synth.volume.value = -11;           // headroom para acordes
+
+  // Sincroniza o motor com os valores atuais do painel de controles
+  synth.set({ oscillator: { type: waveformSel.value } });
+  const releaseSeconds = Number(releaseSlider.value) / 100;
+  synth.set({ envelope: { release: releaseSeconds } });
+  const volPct = Number(volumeSlider.value) / 100;
+  synth.volume.value = volPct === 0 ? -Infinity : Tone.gainToDb(volPct) - 4;
+  reverb.wet.value = Number(reverbSlider.value) / 100;
+}
+
+function releaseHeldNotes() {
+  if (audioReady && synth && heldNotes.length) {
+    synth.triggerRelease(heldNotes);
+  }
+  heldNotes = [];
 }
 
 function playForCount(count) {
   const chord = SCALE[count];
 
-  if (!chord) {                       // 0 dedos → silêncio visual, nada toca
+  if (!chord) {                       // 0 dedos → silêncio, solta o que estiver preso
+    releaseHeldNotes();
     numeralEl.textContent = "–";
     numeralEl.classList.add("silent");
     numeralEl.classList.remove("pulse");
@@ -77,8 +124,17 @@ function playForCount(count) {
   }
 
   const toPlay = mode === "chords" ? chord.notes : [chord.root];
+
   if (audioReady && synth) {
-    synth.triggerAttackRelease(toPlay, "4n");
+    if (playMode === "pad") {
+      // Sustenta: solta o acorde anterior e ataca o novo, sem soltar ainda
+      releaseHeldNotes();
+      synth.triggerAttack(toPlay);
+      heldNotes = toPlay;
+    } else {
+      // Trigger: dedilhado curto, como tecla solta rápido
+      synth.triggerAttackRelease(toPlay, "4n");
+    }
   }
 
   // HUD
@@ -143,7 +199,86 @@ function countFingers(landmarks, handedness) {
   return count;
 }
 
-/* ---------- Callback do MediaPipe ---------- */
+/* ---------- Modo Melodia: posição da mão = altura, pinça = dedilhar ----------
+   Cada mão toca sua própria voz de forma independente: mova para escolher
+   a nota (quantizada, sempre afinada) e feche o polegar contra o indicador
+   para dedilhar. Sem debounce — a resposta é imediata, como uma corda. */
+function isPinched(landmarks) {
+  const wrist = landmarks[0], middleMcp = landmarks[9];
+  const handSize = distance(wrist, middleMcp) || 0.001;
+  const pinchDist = distance(landmarks[4], landmarks[8]) / handSize;
+  return pinchDist < 0.55;
+}
+
+function melodyNoteForX(displayX) {
+  const idx = Math.min(
+    MELODY_SCALE.length - 1,
+    Math.max(0, Math.floor(displayX * MELODY_SCALE.length))
+  );
+  return MELODY_SCALE[idx];
+}
+
+function handleMelodyHand(label, landmarks) {
+  // x normalizado (0–1) da ponta do indicador; corrigido para a tela espelhada
+  const displayX = 1 - landmarks[8].x;
+  const note = melodyNoteForX(displayX);
+  const st = pinchState[label];
+  const pinched = isPinched(landmarks);
+
+  if (pinched && !st.pinched) {
+    if (audioReady && synth) synth.triggerAttack(note);
+    st.pinched = true;
+    st.note = note;
+  } else if (pinched && st.pinched && note !== st.note) {
+    // deslizou para outra nota mantendo a pinça: troca sem soltar o gesto
+    if (audioReady && synth) { synth.triggerRelease(st.note); synth.triggerAttack(note); }
+    st.note = note;
+  } else if (!pinched && st.pinched) {
+    if (audioReady && synth) synth.triggerRelease(st.note);
+    st.pinched = false;
+    st.note = null;
+  }
+}
+
+function releaseMelodyHand(label) {
+  const st = pinchState[label];
+  if (st.pinched) {
+    if (audioReady && synth) synth.triggerRelease(st.note);
+    st.pinched = false;
+    st.note = null;
+  }
+}
+
+function updateMelodyHud() {
+  const held = ["Left", "Right"].map((l) => pinchState[l]).filter((s) => s.pinched);
+  numeralEl.textContent = held.length ? "♪" : "–";
+  numeralEl.classList.toggle("silent", held.length === 0);
+  chordNameEl.textContent = held.length
+    ? held.map((s) => noteToPt(s.note)).join(" + ")
+    : "Melodia";
+  chordNotesEl.textContent = "una polegar e indicador para dedilhar";
+}
+
+function drawMelodyGuides() {
+  const n = MELODY_SCALE.length;
+  const w = canvas.width, h = canvas.height;
+  ctx.save();
+  ctx.font = "600 12px 'IBM Plex Mono', monospace";
+  ctx.textAlign = "center";
+  for (let i = 0; i < n; i++) {
+    const xLine = (i / n) * w;
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.beginPath();
+    ctx.moveTo(xLine, 0);
+    ctx.lineTo(xLine, h);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(238,241,248,0.5)";
+    ctx.fillText(noteToPt(MELODY_SCALE[i]), (i + 0.5) / n * w, 18);
+  }
+  ctx.restore();
+}
+
+
 function onResults(results) {
   // Ajusta o canvas ao tamanho do frame uma única vez
   if (canvas.width !== results.image.width) {
@@ -160,29 +295,49 @@ function onResults(results) {
   ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
 
   let total = 0, left = 0, right = 0;
+  const seenLabels = new Set();
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
     for (let i = 0; i < results.multiHandLandmarks.length; i++) {
       const lm = results.multiHandLandmarks[i];
       const label = results.multiHandedness[i].label; // "Left" | "Right"
+      seenLabels.add(label);
 
       drawConnectors(ctx, lm, HAND_CONNECTIONS, { color: "#38f0e0", lineWidth: 3 });
       drawLandmarks(ctx, lm, { color: "#ff4d8d", lineWidth: 1, radius: 3.5 });
 
-      const c = countFingers(lm, label);
-      total += c;
-      if (label === "Left") left = c; else right = c;
+      if (mode === "melody") {
+        handleMelodyHand(label, lm);
+      } else {
+        const c = countFingers(lm, label);
+        total += c;
+        // O canvas exibe a imagem espelhada (efeito selfie), mas o rótulo
+        // "Left"/"Right" do MediaPipe se refere à mão real, não-espelhada.
+        // Por isso invertemos aqui só a atribuição do HUD (esquerda/direita
+        // na tela), mantendo o rótulo original para a lógica do polegar.
+        if (label === "Left") right = c; else left = c;
+      }
     }
   }
 
-  ctx.restore();
+  // Mão que saiu do quadro no modo melodia deve soltar a nota dedilhada
+  if (mode === "melody") {
+    ["Left", "Right"].forEach((l) => { if (!seenLabels.has(l)) releaseMelodyHand(l); });
+  }
+
+  ctx.restore();                      // desfaz o espelhamento antes de desenhar texto de UI
+  if (mode === "melody") drawMelodyGuides();
 
   // Leitura ao vivo (independente do disparo de áudio)
   leftEl.textContent  = left;
   rightEl.textContent = right;
   totalEl.textContent = total;
 
-  handleGesture(total);
+  if (mode === "melody") {
+    updateMelodyHud();
+  } else {
+    handleGesture(total);
+  }
 }
 
 /* ---------- MediaPipe Hands + câmera ---------- */
@@ -225,15 +380,73 @@ startBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- Alternar modo (acordes / notas) ---------- */
+/* ---------- Alternar modo (acordes / notas / melodia) ---------- */
 modeBtns.forEach((btn) => {
   btn.addEventListener("click", () => {
     modeBtns.forEach((b) => b.classList.remove("is-active"));
     btn.classList.add("is-active");
-    mode = btn.dataset.mode;
-    // Re-emite o gesto atual para atualizar o rótulo (notas x acordes)
-    if (lastPlayed > 0) playForCount(lastPlayed);
+    const next = btn.dataset.mode;
+
+    if (mode === "melody" && next !== "melody") {
+      ["Left", "Right"].forEach(releaseMelodyHand);
+    }
+    if (mode !== "melody" && next === "melody") {
+      releaseHeldNotes();
+      lastPlayed = -1;
+    }
+
+    mode = next;
+    legendEl.classList.toggle("is-hidden", mode === "melody");
+
+    if (mode === "melody") {
+      updateMelodyHud();
+    } else if (lastPlayed > 0) {
+      // Re-emite o gesto atual para atualizar o rótulo (notas x acordes)
+      playForCount(lastPlayed);
+    }
   });
+});
+
+/* ---------- Painel de ajustes (drivers do synth) ---------- */
+gearBtn.addEventListener("click", () => {
+  const open = controlPanel.classList.toggle("is-open");
+  gearBtn.setAttribute("aria-expanded", String(open));
+  controlPanel.setAttribute("aria-hidden", String(!open));
+});
+
+waveformSel.addEventListener("change", () => {
+  if (synth) synth.set({ oscillator: { type: waveformSel.value } });
+});
+
+playModeBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    playModeBtns.forEach((b) => b.classList.remove("is-active"));
+    btn.classList.add("is-active");
+    const next = btn.dataset.playMode;
+    // Trocar de pad para trigger deve soltar qualquer nota presa
+    if (playMode === "pad" && next === "trigger") releaseHeldNotes();
+    playMode = next;
+  });
+});
+
+volumeSlider.addEventListener("input", () => {
+  volumeVal.textContent = volumeSlider.value;
+  if (synth) {
+    // 0–100% mapeado para -40dB (quase mudo) até 0dB
+    const pct = Number(volumeSlider.value) / 100;
+    synth.volume.value = pct === 0 ? -Infinity : Tone.gainToDb(pct) - 4;
+  }
+});
+
+reverbSlider.addEventListener("input", () => {
+  reverbVal.textContent = reverbSlider.value;
+  if (reverb) reverb.wet.value = Number(reverbSlider.value) / 100;
+});
+
+releaseSlider.addEventListener("input", () => {
+  const seconds = Number(releaseSlider.value) / 100;
+  releaseVal.textContent = seconds.toFixed(2);
+  if (synth) synth.set({ envelope: { release: seconds } });
 });
 
 /* ---------- Legenda dos graus ---------- */

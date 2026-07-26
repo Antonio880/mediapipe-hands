@@ -24,11 +24,61 @@
         </div>
       </div>
 
-      <div class="mode" role="group" aria-label="Modo de som">
-        <button class="mode__btn is-active" data-mode="chords" type="button">Acordes</button>
-        <button class="mode__btn" data-mode="notes" type="button">Notas</button>
+      <div class="topbar__right">
+        <div class="mode" role="group" aria-label="Modo de som">
+          <button class="mode__btn is-active" data-mode="chords" type="button">Acordes</button>
+          <button class="mode__btn" data-mode="notes" type="button">Notas</button>
+          <button class="mode__btn" data-mode="melody" type="button">Melodia</button>
+        </div>
+
+        <button class="gear" id="gear-btn" type="button" aria-expanded="false" aria-controls="control-panel" title="Ajustes do synth">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="3.2"/>
+            <path d="M19.4 13.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2.06 2.06 0 1 1-2.92 2.92l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V19.6a2.06 2.06 0 1 1-4.12 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2.06 2.06 0 1 1-2.92-2.92l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H4.4a2.06 2.06 0 1 1 0-4.12h.09A1.7 1.7 0 0 0 6.05 7.2a1.7 1.7 0 0 0-.34-1.87l-.06-.06A2.06 2.06 0 1 1 8.57 2.35l.06.06a1.7 1.7 0 0 0 1.87.34H10.6A1.7 1.7 0 0 0 11.63 1.19V1.1a2.06 2.06 0 1 1 4.12 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2.06 2.06 0 1 1 2.92 2.92l-.06.06a1.7 1.7 0 0 0-.34 1.87v.1a1.7 1.7 0 0 0 1.56 1.03h.09a2.06 2.06 0 1 1 0 4.12h-.09a1.7 1.7 0 0 0-1.56 1.03Z"/>
+          </svg>
+        </button>
       </div>
     </header>
+
+    <!-- Painel de controles do synth -->
+    <div class="control-panel" id="control-panel" aria-hidden="true">
+      <div class="control-panel__row">
+        <label class="control" for="waveform">
+          <span class="control__label">Forma de onda</span>
+          <select id="waveform" class="control__select">
+            <option value="triangle">Triângulo</option>
+            <option value="sine">Senoide</option>
+            <option value="sawtooth">Dente de serra</option>
+            <option value="square">Quadrada</option>
+          </select>
+        </label>
+
+        <div class="control">
+          <span class="control__label">Modo de disparo</span>
+          <div class="segmented" role="group" aria-label="Modo de disparo">
+            <button class="segmented__btn is-active" data-play-mode="trigger" type="button">Trigger</button>
+            <button class="segmented__btn" data-play-mode="pad" type="button">Pad (sustain)</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-panel__row">
+        <label class="control" for="volume">
+          <span class="control__label">Volume <span id="volume-val">70</span>%</span>
+          <input type="range" id="volume" class="control__slider" min="0" max="100" value="70" />
+        </label>
+
+        <label class="control" for="reverb">
+          <span class="control__label">Reverb <span id="reverb-val">28</span>%</span>
+          <input type="range" id="reverb" class="control__slider" min="0" max="100" value="28" />
+        </label>
+
+        <label class="control" for="release">
+          <span class="control__label">Release <span id="release-val">0.9</span>s</span>
+          <input type="range" id="release" class="control__slider" min="10" max="250" value="90" />
+        </label>
+      </div>
+    </div>
 
     <!-- Palco: câmera + HUD -->
     <main class="viewport">

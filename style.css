@@ -85,6 +85,12 @@ body {
   letter-spacing: 0.01em;
 }
 
+.topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .mode {
   display: inline-flex;
   padding: 4px;
@@ -111,6 +117,131 @@ body {
   color: #12151f;
   background: var(--text);
 }
+
+.gear {
+  display: grid;
+  place-items: center;
+  width: 38px; height: 38px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  color: var(--muted);
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease), transform 0.2s var(--ease);
+}
+.gear:hover { color: var(--text); border-color: rgba(255,255,255,0.22); }
+.gear[aria-expanded="true"] {
+  color: var(--gold);
+  border-color: rgba(245,197,66,0.45);
+  transform: rotate(28deg);
+}
+
+/* ---------- Painel de controles (drivers do synth) ---------- */
+.control-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.32s var(--ease), opacity 0.28s var(--ease);
+}
+.control-panel.is-open { grid-template-rows: 1fr; opacity: 1; }
+.control-panel > * { overflow: hidden; }
+
+.control-panel__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+}
+.control-panel__row + .control-panel__row { margin-top: 10px; }
+.control-panel > .control-panel__row:first-child { border-radius: 14px 14px 0 0; border-bottom: none; }
+.control-panel > .control-panel__row:last-child { border-radius: 0 0 14px 14px; margin-top: 0; }
+
+.control {
+  flex: 1 1 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.control__label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.control__label span { color: var(--gold); font-style: normal; }
+
+.control__select {
+  font-family: "Inter", sans-serif;
+  font-size: 13.5px;
+  color: var(--text);
+  background: var(--bg-soft);
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  padding: 9px 10px;
+  cursor: pointer;
+}
+.control__select:focus-visible,
+.control__slider:focus-visible,
+.segmented__btn:focus-visible,
+.mode__btn:focus-visible,
+.gear:focus-visible,
+.start:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.control__slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.14);
+  cursor: pointer;
+}
+.control__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--gold);
+  border: 2px solid #12151f;
+  box-shadow: 0 0 0 1px rgba(245,197,66,0.5);
+}
+.control__slider::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--gold);
+  border: 2px solid #12151f;
+}
+
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-soft);
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+}
+.segmented__btn {
+  flex: 1;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.segmented__btn:hover { color: var(--text); }
+.segmented__btn.is-active { color: #12151f; background: var(--gold); }
 
 /* ---------- Palco / câmera ---------- */
 .viewport {
@@ -300,7 +431,9 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 8px;
+  transition: opacity 0.2s var(--ease);
 }
+.legend.is-hidden { display: none; }
 .legend__item {
   display: flex;
   flex-direction: column;
