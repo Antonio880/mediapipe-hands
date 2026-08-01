@@ -1,0 +1,38 @@
+# Configuração do Vision Engine.
+# Qualquer chave omitida aqui usa o default em engine/config.py.
+
+source:
+  type: webcam       # webcam | rtsp
+  index: 0            # índice da webcam (0 = padrão do sistema)
+  url: null            # ex.: rtsp://usuario:senha@192.168.0.10:554/stream, usado quando type=rtsp
+  width: 640
+  height: 480
+  fps: 30
+  reconnect_delay: 2.0  # segundos entre tentativas de reconexão (RTSP)
+
+detection:
+  every_n_frames: 1    # detectar a cada N frames (1 = todo frame; suba para economizar CPU)
+
+tracking:
+  iou_threshold: 0.3
+  max_missed_frames: 30  # ~1s de carência a 30fps antes de encerrar um track
+
+display:
+  enabled: true
+  window_name: "Vision Engine"
+
+sinks:
+  console: true
+  sqlite:
+    enabled: true
+    path: "events.db"
+  snapshot:
+    enabled: true
+    dir: "snapshots"
+
+face:
+  gallery_dir: "gallery"
+  recognition_threshold: 0.45   # similaridade de cosseno mínima para reconhecer
+  vote_frames: 8                # amostras coletadas antes de travar a identidade do track
+  provider: coreml               # coreml (Mac M1/M2/M3) | cpu
+  unknown_label: "desconhecido"
