@@ -74,8 +74,7 @@ const SCALE = [
    Posição X da mão → nota quantizada nesta escala (Dó maior, 2 oitavas).
    Da esquerda para a direita da tela = grave para agudo.            */
 const MELODY_SCALE = [
-  "C4", "D4", "E4", "F4", "G4", "A4", "B4",
-  "C5", "D5", "E5", "F5", "G5", "A5", "B5", "C6",
+  "C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5",
 ];
 
 /* ---------- Estado ---------- */
@@ -284,7 +283,8 @@ function drawMelodyGuides() {
   ctx.textAlign = "center";
   for (let i = 0; i < n; i++) {
     const xLine = (i / n) * w;
-    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.strokeStyle = "rgba(255,255,255,0.22)";
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(xLine, 0);
     ctx.lineTo(xLine, h);
